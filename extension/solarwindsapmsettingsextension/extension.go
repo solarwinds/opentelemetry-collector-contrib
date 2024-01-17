@@ -5,7 +5,7 @@ import (
 	"crypto/tls"
 	"encoding/binary"
 	"encoding/json"
-	"fmt"
+	"errors"
 	"github.com/gogo/protobuf/proto"
 	"github.com/solarwindscloud/apm-proto/go/collectorpb"
 	"go.opentelemetry.io/collector/component"
@@ -184,7 +184,7 @@ func (extension *solarwindsapmSettingsExtension) Start(ctx context.Context, _ co
 	var err error
 	extension.conn, err = grpc.Dial(extension.config.Endpoint, grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{})))
 	if err != nil {
-		return fmt.Errorf("Failed to dial: " + err.Error())
+		return errors.New("Failed to dial: " + err.Error())
 	} else {
 		extension.logger.Info("Dailed to " + extension.config.Endpoint)
 	}
@@ -217,7 +217,9 @@ func (extension *solarwindsapmSettingsExtension) Start(ctx context.Context, _ co
 
 func (extension *solarwindsapmSettingsExtension) Shutdown(_ context.Context) error {
 	extension.logger.Debug("Shutting down solarwinds apm settings extension")
-	extension.conn.Close()
-	extension.cancel()
+	err := extension.conn.Close()
+	if err != nil {
+		return errors.New("Failed to close the gRPC connection to solarwinds APM collector " + err.Error())
+	}
 	return nil
 }
