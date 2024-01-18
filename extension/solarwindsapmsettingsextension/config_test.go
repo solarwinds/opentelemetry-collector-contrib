@@ -58,6 +58,15 @@ func TestValidate(t *testing.T) {
 			},
 			err: nil,
 		},
+		{
+			name: "empty_interval",
+			cfg: &Config{
+				Endpoint: "host:12345",
+				Key:      "token:name",
+				Interval: "",
+			},
+			err: errors.New("interval has to be a duration string. Valid time units are \"ns\", \"us\" (or \"µs\"), \"ms\", \"s\", \"m\", \"h\""),
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
