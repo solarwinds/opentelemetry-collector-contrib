@@ -12,7 +12,7 @@ func TestCreateExtension(t *testing.T) {
 	conf := &Config{
 		Endpoint: "apm-testcollector.click:443",
 		Key:      "valid:unittest",
-		Interval: "1s",
+		Interval: "10s",
 	}
 	ex := createAnExtension(conf, t)
 	ex.Shutdown(context.TODO())
@@ -22,7 +22,7 @@ func TestCreateExtensionWrongEndpoint(t *testing.T) {
 	conf := &Config{
 		Endpoint: "apm-testcollector.nothing:443",
 		Key:      "valid:unittest",
-		Interval: "1s",
+		Interval: "5s",
 	}
 	ex := createAnExtension(conf, t)
 	ex.Shutdown(context.TODO())
@@ -32,7 +32,27 @@ func TestCreateExtensionWrongKey(t *testing.T) {
 	conf := &Config{
 		Endpoint: "apm-testcollector.click:443",
 		Key:      "invalid",
-		Interval: "1s",
+		Interval: "60s",
+	}
+	ex := createAnExtension(conf, t)
+	ex.Shutdown(context.TODO())
+}
+
+func TestCreateExtensionIntervalLessThanMinimum(t *testing.T) {
+	conf := &Config{
+		Endpoint: "apm-testcollector.click:443",
+		Key:      "valid:unittest",
+		Interval: "4s",
+	}
+	ex := createAnExtension(conf, t)
+	ex.Shutdown(context.TODO())
+}
+
+func TestCreateExtensionIntervalGreaterThanMaximum(t *testing.T) {
+	conf := &Config{
+		Endpoint: "apm-testcollector.click:443",
+		Key:      "valid:unittest",
+		Interval: "61s",
 	}
 	ex := createAnExtension(conf, t)
 	ex.Shutdown(context.TODO())

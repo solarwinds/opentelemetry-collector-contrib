@@ -34,4 +34,10 @@ The service key in format `<token>:<name>` for `getSettings` from Solarwinds APM
 ### interval (Optional)
 Periodic interval to get Solarwinds APM specific settings from Solarwinds APM collector.
 
+Minimum value: `5s`
+
+Maximum value: `60s`
+
+Value that is outside the boundary will be bounded to either the minimum or maximum value.
+
 Default: `10s`

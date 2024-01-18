@@ -49,6 +49,15 @@ func TestValidate(t *testing.T) {
 			},
 			err: errors.New("key should be in \"<token>:<service_name>\" format"),
 		},
+		{
+			name: "valid",
+			cfg: &Config{
+				Endpoint: "host:12345",
+				Key:      "token:name",
+				Interval: "1s",
+			},
+			err: nil,
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

@@ -21,8 +21,10 @@ import (
 )
 
 const (
-	RawOutputFile  = "/tmp/solarwinds-apm-settings-raw"
-	JSONOutputFile = "/tmp/solarwinds-apm-settings.json"
+	RawOutputFile   = "/tmp/solarwinds-apm-settings-raw"
+	JSONOutputFile  = "/tmp/solarwinds-apm-settings.json"
+	MinimumInterval = "5s"
+	MaximumInterval = "60s"
 )
 
 type solarwindsapmSettingsExtension struct {
@@ -195,7 +197,18 @@ func (extension *solarwindsapmSettingsExtension) Start(ctx context.Context, _ co
 
 	// setup lightweight thread to refresh
 	var interval time.Duration
-	interval, err = time.ParseDuration(extension.config.Interval)
+	interval, _ = time.ParseDuration(extension.config.Interval)
+	minimum, _ := time.ParseDuration(MinimumInterval)
+	maximum, _ := time.ParseDuration(MaximumInterval)
+	if interval.Seconds() < minimum.Seconds() {
+		interval = minimum
+		extension.logger.Warn("Interval " + extension.config.Interval + " is bounded to the minimum interval " + MinimumInterval)
+	}
+	if interval.Seconds() > maximum.Seconds() {
+		interval = maximum
+		extension.logger.Warn("Interval " + extension.config.Interval + " is bounded to the maximum interval " + MaximumInterval)
+	}
+
 	go func() {
 		ticker := time.NewTicker(interval)
 		defer ticker.Stop()
