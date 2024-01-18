@@ -34,6 +34,14 @@ func TestValidate(t *testing.T) {
 			err: errors.New("endpoint should be in \"<host>:<port>\" format"),
 		},
 		{
+			name: "invalid endpoint 2",
+			cfg: &Config{
+				Endpoint: "host:12345:12345",
+				Key:      "invalid",
+			},
+			err: errors.New("endpoint should be in \"<host>:<port>\" format"),
+		},
+		{
 			name: "invalid endpoint format but port is not an integer",
 			cfg: &Config{
 				Endpoint: "host:abc",
@@ -46,6 +54,14 @@ func TestValidate(t *testing.T) {
 			cfg: &Config{
 				Endpoint: "host:12345",
 				Key:      "invalid",
+			},
+			err: errors.New("key should be in \"<token>:<service_name>\" format"),
+		},
+		{
+			name: "invalid key 2",
+			cfg: &Config{
+				Endpoint: "host:12345",
+				Key:      "invalid:name:name",
 			},
 			err: errors.New("key should be in \"<token>:<service_name>\" format"),
 		},
