@@ -97,7 +97,7 @@ func TestValidate(t *testing.T) {
 				Endpoint: "apm.collector.na-01.cloud.solarwinds.com:443",
 				Key:      "::",
 			},
-			err: errors.New("key should be in \"<token>:<service_name>\" format and \"<token>\" must not be empty"),
+			err: errors.New("key should be in \"<token>:<service_name>\" format"),
 		},
 		{
 			name: "key is :name",

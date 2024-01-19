@@ -63,6 +63,9 @@ func Refresh(extension *solarwindsapmSettingsExtension) {
 		} else {
 			switch result := response.GetResult(); result {
 			case collectorpb.ResultCode_OK:
+				if len(response.GetWarning()) != 0 {
+					extension.logger.Warn(response.GetWarning())
+				}
 				if bytes, err := proto.Marshal(response); err != nil {
 					extension.logger.Error("Unable to marshal response to bytes " + err.Error())
 				} else {

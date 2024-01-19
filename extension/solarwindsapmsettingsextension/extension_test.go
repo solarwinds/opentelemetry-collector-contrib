@@ -28,6 +28,36 @@ func TestCreateExtensionWrongEndpoint(t *testing.T) {
 	ex.Shutdown(context.TODO())
 }
 
+func TestCreateExtensionUnAuthorizedKeyToAPMCollector(t *testing.T) {
+	conf := &Config{
+		Endpoint: "apm.collector.na-01.cloud.solarwinds.com:443",
+		Key:      "invalid",
+		Interval: "60s",
+	}
+	ex := createAnExtension(conf, t)
+	ex.Shutdown(context.TODO())
+}
+
+func TestCreateExtensionUnAuthorizedKeyWithServiceNameToAPMCollector(t *testing.T) {
+	conf := &Config{
+		Endpoint: "apm.collector.na-01.cloud.solarwinds.com:443",
+		Key:      "invalid:service_name",
+		Interval: "60s",
+	}
+	ex := createAnExtension(conf, t)
+	ex.Shutdown(context.TODO())
+}
+
+func TestCreateExtensionEmptyKeyWithServiceNameToAPMCollector(t *testing.T) {
+	conf := &Config{
+		Endpoint: "apm.collector.na-01.cloud.solarwinds.com:443",
+		Key:      ":service_name",
+		Interval: "60s",
+	}
+	ex := createAnExtension(conf, t)
+	ex.Shutdown(context.TODO())
+}
+
 func TestCreateExtensionWrongKey(t *testing.T) {
 	conf := &Config{
 		Endpoint: "apm-testcollector.click:443",
