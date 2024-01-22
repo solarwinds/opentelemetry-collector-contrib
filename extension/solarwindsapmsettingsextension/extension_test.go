@@ -58,6 +58,16 @@ func TestCreateExtensionEmptyKeyWithServiceNameToAPMCollector(t *testing.T) {
 	ex.Shutdown(context.TODO())
 }
 
+func TestCreateExtensionNoSuchHost(t *testing.T) {
+	conf := &Config{
+		Endpoint: "apm.collector.na-99.cloud.solarwinds.com:443",
+		Key:      "invalid",
+		Interval: "60s",
+	}
+	ex := createAnExtension(conf, t)
+	ex.Shutdown(context.TODO())
+}
+
 func TestCreateExtensionWrongKey(t *testing.T) {
 	conf := &Config{
 		Endpoint: "apm-testcollector.click:443",
