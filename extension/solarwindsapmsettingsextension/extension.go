@@ -16,7 +16,9 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"math"
 	"os"
+	"regexp"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -43,7 +45,75 @@ func newSolarwindsApmSettingsExtension(extensionCfg *Config, logger *zap.Logger)
 	return settingsExtension, nil
 }
 
-func Refresh(extension *solarwindsapmSettingsExtension) {
+func validateSolarwindsApmSettingsExtensionConfiguration(extensionCfg *Config, logger *zap.Logger) bool {
+	// Endpoint
+	if len(extensionCfg.Endpoint) == 0 {
+		logger.Error("endpoint must not be empty")
+		return false
+	}
+	endpointArr := strings.Split(extensionCfg.Endpoint, ":")
+	if len(endpointArr) != 2 {
+		logger.Error("endpoint should be in \"<host>:<port>\" format")
+		return false
+	}
+	if len(endpointArr[0]) == 0 {
+		logger.Error("endpoint should be in \"<host>:<port>\" format and \"<host>\" must not be empty")
+		return false
+	}
+	if len(endpointArr[1]) == 0 {
+		logger.Error("endpoint should be in \"<host>:<port>\" format and \"<port>\" must not be empty")
+		return false
+	}
+	matched, _ := regexp.MatchString(`apm.collector.[a-z]{2,3}-[0-9]{2}.[a-z\-]*.solarwinds.com`, endpointArr[0])
+	if !matched {
+		logger.Error("endpoint \"<host>\" part should be in \"apm.collector.[a-z]{2,3}-[0-9]{2}.[a-z\\-]*.solarwinds.com\" regex format, see https://documentation.solarwinds.com/en/success_center/observability/content/system_requirements/endpoints.htm for detail")
+		return false
+	}
+	if _, err := strconv.Atoi(endpointArr[1]); err != nil {
+		logger.Error("the <port> portion of endpoint has to be an integer")
+		return false
+	}
+	// Key
+	if len(extensionCfg.Key) == 0 {
+		logger.Error("key must not be empty")
+		return false
+	}
+	keyArr := strings.Split(extensionCfg.Key, ":")
+	if len(keyArr) != 2 {
+		logger.Error("key should be in \"<token>:<service_name>\" format")
+		return false
+	}
+	if len(keyArr[0]) == 0 {
+		logger.Error("key should be in \"<token>:<service_name>\" format and \"<token>\" must not be empty")
+		return false
+	}
+	if len(keyArr[1]) == 0 {
+		logger.Error("key should be in \"<token>:<service_name>\" format and \"<service_name>\" must not be empty")
+		return false
+	}
+	/*
+	 * Interval
+	 * We don't return false here as we always has an interval value
+	 */
+	if interval, err := time.ParseDuration(extensionCfg.Interval); err != nil {
+		logger.Warn("interval has to be a duration string. Valid time units are \"ns\", \"us\" (or \"µs\"), \"ms\", \"s\", \"m\", \"h\". use default " + DefaultInterval + " instead")
+		extensionCfg.Interval = DefaultInterval
+	} else {
+		minimum, _ := time.ParseDuration(MinimumInterval)
+		maximum, _ := time.ParseDuration(MaximumInterval)
+		if interval.Seconds() < minimum.Seconds() {
+			logger.Warn("Interval " + extensionCfg.Interval + " is less than the minimum supported interval " + MinimumInterval + ". use minimum interval " + MinimumInterval + " instead")
+			extensionCfg.Interval = MinimumInterval
+		}
+		if interval.Seconds() > maximum.Seconds() {
+			logger.Warn("Interval " + extensionCfg.Interval + " is greater than the maximum supported interval " + MaximumInterval + ". use maximum interval " + MaximumInterval + " instead")
+			extensionCfg.Interval = MaximumInterval
+		}
+	}
+	return true
+}
+
+func refresh(extension *solarwindsapmSettingsExtension) {
 	extension.logger.Info("Time to refresh from " + extension.config.Endpoint)
 	if hostname, err := os.Hostname(); err != nil {
 		extension.logger.Error("Unable to call os.Hostname() " + err.Error())
@@ -195,32 +265,27 @@ func (extension *solarwindsapmSettingsExtension) Start(ctx context.Context, _ co
 	}
 	extension.client = collectorpb.NewTraceCollectorClient(extension.conn)
 
-	// Refresh immediately
-	Refresh(extension)
+	// Refresh immediately if configuration passes validation
+	if validateSolarwindsApmSettingsExtensionConfiguration(extension.config, extension.logger) {
+		refresh(extension)
+	} else {
+		extension.logger.Warn("No refresh due to invalid config value")
+	}
 
 	// setup lightweight thread to refresh
-	var interval time.Duration
-	interval, _ = time.ParseDuration(extension.config.Interval)
-	minimum, _ := time.ParseDuration(MinimumInterval)
-	maximum, _ := time.ParseDuration(MaximumInterval)
-	if interval.Seconds() < minimum.Seconds() {
-		interval = minimum
-		extension.logger.Warn("Interval " + extension.config.Interval + " is bounded to the minimum interval " + MinimumInterval)
-	}
-	if interval.Seconds() > maximum.Seconds() {
-		interval = maximum
-		extension.logger.Warn("Interval " + extension.config.Interval + " is bounded to the maximum interval " + MaximumInterval)
-	}
-
+	interval, _ := time.ParseDuration(extension.config.Interval)
 	go func() {
 		ticker := time.NewTicker(interval)
 		defer ticker.Stop()
-
 		for {
 			select {
 			case <-ticker.C:
 				// Refresh at each ticker event
-				Refresh(extension)
+				if validateSolarwindsApmSettingsExtensionConfiguration(extension.config, extension.logger) {
+					refresh(extension)
+				} else {
+					extension.logger.Warn("No refresh due to invalid config value")
+				}
 			case <-ctx.Done():
 				extension.logger.Info("Received ctx.Done() from ticker")
 				return
