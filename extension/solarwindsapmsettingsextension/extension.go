@@ -133,8 +133,8 @@ func refresh(extension *solarwindsapmSettingsExtension) {
 		} else {
 			switch result := response.GetResult(); result {
 			case collectorpb.ResultCode_OK:
-				if len(response.GetWarning()) != 0 {
-					extension.logger.Error(response.GetWarning())
+				if len(response.GetWarning()) > 0 {
+					extension.logger.Warn(response.GetWarning())
 				}
 				if bytes, err := proto.Marshal(response); err != nil {
 					extension.logger.Error("Unable to marshal response to bytes " + err.Error())
@@ -143,7 +143,11 @@ func refresh(extension *solarwindsapmSettingsExtension) {
 					if err := os.WriteFile(RawOutputFile, bytes, 0644); err != nil {
 						extension.logger.Error("Unable to write " + RawOutputFile + " " + err.Error())
 					} else {
-						extension.logger.Info(RawOutputFile + " is refreshed")
+						if len(response.GetWarning()) > 0 {
+							extension.logger.Warn(RawOutputFile + " is refreshed (soft disabled)")
+						} else {
+							extension.logger.Info(RawOutputFile + " is refreshed")
+						}
 					}
 				}
 				// Output in human-readable format
@@ -232,7 +236,11 @@ func refresh(extension *solarwindsapmSettingsExtension) {
 					if err := os.WriteFile(JSONOutputFile, content, 0644); err != nil {
 						extension.logger.Error("Unable to write " + JSONOutputFile + " " + err.Error())
 					} else {
-						extension.logger.Info(JSONOutputFile + " is refreshed")
+						if len(response.GetWarning()) > 0 {
+							extension.logger.Warn(JSONOutputFile + " is refreshed (soft disabled)")
+						} else {
+							extension.logger.Info(JSONOutputFile + " is refreshed")
+						}
 						extension.logger.Info(string(content))
 					}
 				}
