@@ -1,15 +1,11 @@
-package solarwindsapmsettingsextension
+// Copyright The OpenTelemetry Authors
+// SPDX-License-Identifier: Apache-2.0
+
+package solarwindsapmsettingsextension // import "github.com/open-telemetry/opentelemetry-collector-contrib/extension/solarwindsapmsettingsextension"
+import "time"
 
 type Config struct {
-	Endpoint string `mapstructure:"endpoint"`
-	Key      string `mapstructure:"key"`
-	Interval string `mapstructure:"interval"`
-}
-
-func (cfg *Config) Validate() error {
-	/**
-	 * No configuration validation here after discussion.
-	 * Extension will check the value and print error/warning message instead
-	 */
-	return nil
+	Endpoint string        `mapstructure:"endpoint"`
+	Key      string        `mapstructure:"key"`
+	Interval time.Duration `mapstructure:"interval"`
 }

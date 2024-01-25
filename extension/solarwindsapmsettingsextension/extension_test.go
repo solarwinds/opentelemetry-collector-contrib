@@ -3,6 +3,7 @@ package solarwindsapmsettingsextension
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/collector/extension"
@@ -11,103 +12,33 @@ import (
 )
 
 func TestCreateExtension(t *testing.T) {
-	conf := &Config{
-		Endpoint: "apm-testcollector.click:443",
-		Key:      "valid:unittest",
-		Interval: "10s",
-	}
-	ex := createAnExtension(conf, t)
-	ex.Shutdown(context.TODO())
-}
+	t.Parallel()
 
-func TestCreateExtensionWrongEndpoint(t *testing.T) {
-	conf := &Config{
-		Endpoint: "apm-testcollector.nothing:443",
-		Key:      "valid:unittest",
-		Interval: "5s",
+	tests := []struct {
+		name string
+		cfg  *Config
+	}{
+		{
+			name: "default",
+			cfg: &Config{
+				Interval: time.Duration(10000000000),
+			},
+		},
+		{
+			name: "anything",
+			cfg: &Config{
+				Endpoint: "0.0.0.0:1234",
+				Key:      "something",
+				Interval: time.Duration(10000000000),
+			},
+		},
 	}
-	ex := createAnExtension(conf, t)
-	ex.Shutdown(context.TODO())
-}
-
-func TestCreateExtensionUnAuthorizedKeyToAPMCollector(t *testing.T) {
-	conf := &Config{
-		Endpoint: "apm.collector.na-01.cloud.solarwinds.com:443",
-		Key:      "invalid",
-		Interval: "60s",
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ex := createAnExtension(tt.cfg, t)
+			require.NoError(t, ex.Shutdown(context.TODO()))
+		})
 	}
-	ex := createAnExtension(conf, t)
-	ex.Shutdown(context.TODO())
-}
-
-func TestCreateExtensionMissingServiceNameToAPMCollector(t *testing.T) {
-	conf := &Config{
-		Endpoint: "apm.collector.na-01.cloud.solarwinds.com:443",
-		Key:      "invalid:",
-		Interval: "60s",
-	}
-	ex := createAnExtension(conf, t)
-	ex.Shutdown(context.TODO())
-}
-
-func TestCreateExtensionUnAuthorizedKeyWithServiceNameToAPMCollector(t *testing.T) {
-	conf := &Config{
-		Endpoint: "apm.collector.na-01.cloud.solarwinds.com:443",
-		Key:      "invalid:service_name",
-		Interval: "60s",
-	}
-	ex := createAnExtension(conf, t)
-	ex.Shutdown(context.TODO())
-}
-
-func TestCreateExtensionEmptyKeyWithServiceNameToAPMCollector(t *testing.T) {
-	conf := &Config{
-		Endpoint: "apm.collector.na-01.cloud.solarwinds.com:443",
-		Key:      ":service_name",
-		Interval: "60s",
-	}
-	ex := createAnExtension(conf, t)
-	ex.Shutdown(context.TODO())
-}
-
-func TestCreateExtensionNoSuchHost(t *testing.T) {
-	conf := &Config{
-		Endpoint: "apm.collector.na-99.cloud.solarwinds.com:443",
-		Key:      "invalid:service_name",
-		Interval: "60s",
-	}
-	ex := createAnExtension(conf, t)
-	ex.Shutdown(context.TODO())
-}
-
-func TestCreateExtensionWrongKey(t *testing.T) {
-	conf := &Config{
-		Endpoint: "apm-testcollector.click:443",
-		Key:      "invalid",
-		Interval: "60s",
-	}
-	ex := createAnExtension(conf, t)
-	ex.Shutdown(context.TODO())
-}
-
-func TestCreateExtensionIntervalLessThanMinimum(t *testing.T) {
-	conf := &Config{
-		Endpoint: "apm-testcollector.click:443",
-		Key:      "valid:unittest",
-		Interval: "4s",
-	}
-	ex := createAnExtension(conf, t)
-	ex.Shutdown(context.TODO())
-}
-
-func TestCreateExtensionIntervalGreaterThanMaximum(t *testing.T) {
-	conf := &Config{
-		Endpoint: "apm-testcollector.click:443",
-		Key:      "valid:unittest",
-		Interval: "61s",
-	}
-	ex := createAnExtension(conf, t)
-	ex.Shutdown(context.TODO())
 }
 
 // create extension
@@ -139,7 +70,7 @@ func TestValidateSolarwindsApmSettingsExtensionConfiguration(t *testing.T) {
 			cfg: &Config{
 				Endpoint: "apm.collector.na-02.cloud.solarwinds.com:443",
 				Key:      "token:name",
-				Interval: "10s",
+				Interval: time.Duration(10000000000),
 			},
 			ok:      true,
 			message: "",
@@ -245,44 +176,24 @@ func TestValidateSolarwindsApmSettingsExtensionConfiguration(t *testing.T) {
 			message: "key should be in \"<token>:<service_name>\" format and \"<service_name>\" must not be empty",
 		},
 		{
-			name: "empty_interval",
-			cfg: &Config{
-				Endpoint: "apm.collector.na-01.cloud.solarwinds.com:443",
-				Key:      "token:name",
-				Interval: "",
-			},
-			ok:      true,
-			message: "interval has to be a duration string. Valid time units are \"ns\", \"us\" (or \"µs\"), \"ms\", \"s\", \"m\", \"h\". use default " + DefaultInterval + " instead",
-		},
-		{
-			name: "interval is not a duration string",
-			cfg: &Config{
-				Endpoint: "apm.collector.na-01.cloud.solarwinds.com:443",
-				Key:      "token:name",
-				Interval: "something",
-			},
-			ok:      true,
-			message: "interval has to be a duration string. Valid time units are \"ns\", \"us\" (or \"µs\"), \"ms\", \"s\", \"m\", \"h\". use default " + DefaultInterval + " instead",
-		},
-		{
 			name: "minimum_interval",
 			cfg: &Config{
 				Endpoint: "apm.collector.na-01.cloud.solarwinds.com:443",
 				Key:      "token:name",
-				Interval: "4s",
+				Interval: time.Duration(4000000000),
 			},
 			ok:      true,
-			message: "Interval 4s is less than the minimum supported interval " + MinimumInterval + ". use minimum interval " + MinimumInterval + " instead",
+			message: "Interval 4s is less than the minimum supported interval " + MinimumInterval.String() + ". use minimum interval " + MinimumInterval.String() + " instead",
 		},
 		{
 			name: "maximum_interval",
 			cfg: &Config{
 				Endpoint: "apm.collector.na-01.cloud.solarwinds.com:443",
 				Key:      "token:name",
-				Interval: "61s",
+				Interval: time.Duration(61000000000),
 			},
 			ok:      true,
-			message: "Interval 61s is greater than the maximum supported interval " + MaximumInterval + ". use maximum interval " + MaximumInterval + " instead",
+			message: "Interval 1m1s is greater than the maximum supported interval " + MaximumInterval.String() + ". use maximum interval " + MaximumInterval.String() + " instead",
 		},
 	}
 	for _, tc := range tests {
