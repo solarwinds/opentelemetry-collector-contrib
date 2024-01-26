@@ -1,4 +1,5 @@
-package solarwindsapmsettingsextension // import "github.com/open-telemetry/opentelemetry-collector-contrib/extension/solarwindsapmsettingsextension"
+package solarwindsapmsettingsextension
+
 import "time"
 
 type Config struct {
