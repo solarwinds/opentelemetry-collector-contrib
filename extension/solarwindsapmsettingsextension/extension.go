@@ -104,7 +104,7 @@ func validateSolarwindsApmSettingsExtensionConfiguration(extensionCfg *Config, l
 		 * Service name is empty
 		 * We will try our best effort to resolve the service name
 		 */
-		logger.Info("<service_name> from config is empty. Trying to resolve service name from env variables by best effort")
+		logger.Info("<service_name> from config is empty. Trying to resolve service name from env variables using best effort")
 		serviceName := resolveServiceNameBestEffort(logger)
 		if len(serviceName) > 0 {
 			extensionCfg.Key = keyArr[0] + ":" + serviceName
