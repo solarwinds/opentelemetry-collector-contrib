@@ -5,7 +5,6 @@ import (
 	"crypto/tls"
 	"encoding/binary"
 	"encoding/json"
-	"errors"
 	"github.com/gogo/protobuf/proto"
 	"github.com/solarwindscloud/apm-proto/go/collectorpb"
 	"go.opentelemetry.io/collector/component"
@@ -25,8 +24,8 @@ import (
 const (
 	RawOutputFile   = "/tmp/solarwinds-apm-settings-raw"
 	JSONOutputFile  = "/tmp/solarwinds-apm-settings.json"
-	MinimumInterval = "5s"
-	MaximumInterval = "60s"
+	MinimumInterval = time.Duration(5000000000)
+	MaximumInterval = time.Duration(60000000000)
 )
 
 type solarwindsapmSettingsExtension struct {
@@ -43,6 +42,19 @@ func newSolarwindsApmSettingsExtension(extensionCfg *Config, logger *zap.Logger)
 		logger: logger,
 	}
 	return settingsExtension, nil
+}
+
+func resolveServiceNameBestEffort(logger *zap.Logger) string {
+	if otelServiceName, otelServiceNameDefined := os.LookupEnv("OTEL_SERVICE_NAME"); otelServiceNameDefined && len(otelServiceName) > 0 {
+		logger.Debug("Managed to get service name (" + otelServiceName + ") from environment variable \"OTEL_SERVICE_NAME\"")
+		return otelServiceName
+	} else if awsLambdaFunctionName, awsLambdaFunctionNameDefined := os.LookupEnv("AWS_LAMBDA_FUNCTION_NAME"); awsLambdaFunctionNameDefined && len(awsLambdaFunctionName) > 0 {
+		logger.Debug("Managed to get service name (" + awsLambdaFunctionName + ") from environment variable \"AWS_LAMBDA_FUNCTION_NAME\"")
+		return awsLambdaFunctionName
+	} else {
+		logger.Warn("Unable to resolve service name by our best effort. It can be defined via environment variables \"OTEL_SERVICE_NAME\" or \"AWS_LAMBDA_FUNCTION_NAME\"")
+		return ""
+	}
 }
 
 func validateSolarwindsApmSettingsExtensionConfiguration(extensionCfg *Config, logger *zap.Logger) bool {
@@ -88,27 +100,30 @@ func validateSolarwindsApmSettingsExtensionConfiguration(extensionCfg *Config, l
 		return false
 	}
 	if len(keyArr[1]) == 0 {
-		logger.Error("key should be in \"<token>:<service_name>\" format and \"<service_name>\" must not be empty")
-		return false
+		/**
+		 * Service name is empty
+		 * We will try our best effort to resolve the service name
+		 */
+		serviceName := resolveServiceNameBestEffort(logger)
+		if len(serviceName) > 0 {
+			extensionCfg.Key = keyArr[0] + ":" + serviceName
+			logger.Debug("Created a new Key using " + serviceName + "as the \"<service name>\"")
+		} else {
+			logger.Error("key should be in \"<token>:<service_name>\" format and \"<service_name>\" must not be empty")
+			return false
+		}
 	}
 	/*
 	 * Interval
 	 * We don't return false here as we always has an interval value
 	 */
-	if interval, err := time.ParseDuration(extensionCfg.Interval); err != nil {
-		logger.Warn("interval has to be a duration string. Valid time units are \"ns\", \"us\" (or \"µs\"), \"ms\", \"s\", \"m\", \"h\". use default " + DefaultInterval + " instead")
-		extensionCfg.Interval = DefaultInterval
-	} else {
-		minimum, _ := time.ParseDuration(MinimumInterval)
-		maximum, _ := time.ParseDuration(MaximumInterval)
-		if interval.Seconds() < minimum.Seconds() {
-			logger.Warn("Interval " + extensionCfg.Interval + " is less than the minimum supported interval " + MinimumInterval + ". use minimum interval " + MinimumInterval + " instead")
-			extensionCfg.Interval = MinimumInterval
-		}
-		if interval.Seconds() > maximum.Seconds() {
-			logger.Warn("Interval " + extensionCfg.Interval + " is greater than the maximum supported interval " + MaximumInterval + ". use maximum interval " + MaximumInterval + " instead")
-			extensionCfg.Interval = MaximumInterval
-		}
+	if extensionCfg.Interval.Seconds() < MinimumInterval.Seconds() {
+		logger.Warn("Interval " + extensionCfg.Interval.String() + " is less than the minimum supported interval " + MinimumInterval.String() + ". use minimum interval " + MinimumInterval.String() + " instead")
+		extensionCfg.Interval = MinimumInterval
+	}
+	if extensionCfg.Interval.Seconds() > MaximumInterval.Seconds() {
+		logger.Warn("Interval " + extensionCfg.Interval.String() + " is greater than the maximum supported interval " + MaximumInterval.String() + ". use maximum interval " + MaximumInterval.String() + " instead")
+		extensionCfg.Interval = MaximumInterval
 	}
 	return true
 }
@@ -153,7 +168,6 @@ func refresh(extension *solarwindsapmSettingsExtension) {
 				// Output in human-readable format
 				var settings []map[string]interface{}
 				for _, item := range response.GetSettings() {
-
 					marshalOptions := protojson.MarshalOptions{
 						UseEnumNumbers:  true,
 						EmitUnpopulated: true,
@@ -263,52 +277,51 @@ func (extension *solarwindsapmSettingsExtension) Start(ctx context.Context, _ co
 	extension.logger.Debug("Starting up solarwinds apm settings extension")
 	ctx = context.Background()
 	ctx, extension.cancel = context.WithCancel(ctx)
-
-	var err error
-	extension.conn, err = grpc.Dial(extension.config.Endpoint, grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{})))
-	if err != nil {
-		return errors.New("Failed to dial: " + err.Error())
-	} else {
+	configOK := validateSolarwindsApmSettingsExtensionConfiguration(extension.config, extension.logger)
+	if configOK {
+		extension.conn, _ = grpc.Dial(extension.config.Endpoint, grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{})))
 		extension.logger.Info("Dailed to " + extension.config.Endpoint)
-	}
-	extension.client = collectorpb.NewTraceCollectorClient(extension.conn)
-
-	// Refresh immediately if configuration passes validation
-	if validateSolarwindsApmSettingsExtensionConfiguration(extension.config, extension.logger) {
-		refresh(extension)
-	} else {
-		extension.logger.Warn("No refresh due to invalid config value")
-	}
-
-	// setup lightweight thread to refresh
-	interval, _ := time.ParseDuration(extension.config.Interval)
-	go func() {
-		ticker := time.NewTicker(interval)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-ticker.C:
-				// Refresh at each ticker event
-				if validateSolarwindsApmSettingsExtensionConfiguration(extension.config, extension.logger) {
+		extension.client = collectorpb.NewTraceCollectorClient(extension.conn)
+		go func() {
+			ticker := newTicker(extension.config.Interval)
+			defer ticker.Stop()
+			for {
+				select {
+				case <-ticker.C:
 					refresh(extension)
-				} else {
-					extension.logger.Warn("No refresh due to invalid config value")
+				case <-ctx.Done():
+					extension.logger.Debug("Received ctx.Done() from ticker")
+					return
 				}
-			case <-ctx.Done():
-				extension.logger.Info("Received ctx.Done() from ticker")
-				return
 			}
-		}
-	}()
-
+		}()
+	} else {
+		extension.logger.Warn("solarwindsapmsettingsextension is in noop. Please check config")
+	}
 	return nil
 }
 
 func (extension *solarwindsapmSettingsExtension) Shutdown(_ context.Context) error {
 	extension.logger.Debug("Shutting down solarwinds apm settings extension")
-	err := extension.conn.Close()
-	if err != nil {
-		return errors.New("Failed to close the gRPC connection to solarwinds APM collector " + err.Error())
+	if extension.conn != nil {
+		return extension.conn.Close()
+	} else {
+		return nil
 	}
-	return nil
+}
+
+// Start ticking immediately.
+// Ref: https://stackoverflow.com/questions/32705582/how-to-get-time-tick-to-tick-immediately
+func newTicker(repeat time.Duration) *time.Ticker {
+	ticker := time.NewTicker(repeat)
+	oc := ticker.C
+	nc := make(chan time.Time, 1)
+	go func() {
+		nc <- time.Now()
+		for tm := range oc {
+			nc <- tm
+		}
+	}()
+	ticker.C = nc
+	return ticker
 }
