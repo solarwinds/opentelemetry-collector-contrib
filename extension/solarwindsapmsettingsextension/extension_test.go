@@ -52,18 +52,19 @@ func createAnExtension(c *Config, t *testing.T) extension.Extension {
 }
 
 func TestValidateSolarwindsApmSettingsExtensionConfiguration(t *testing.T) {
-	tests := []struct {
-		name string
-		cfg  *Config
-		ok   bool
+	t.Parallel()
 
-		message string
+	tests := []struct {
+		name    string
+		cfg     *Config
+		ok      bool
+		message []string
 	}{
 		{
 			name:    "nothing",
 			cfg:     &Config{},
 			ok:      false,
-			message: "endpoint must not be empty",
+			message: []string{"endpoint must not be empty"},
 		},
 		{
 			name: "valid configuration",
@@ -73,7 +74,7 @@ func TestValidateSolarwindsApmSettingsExtensionConfiguration(t *testing.T) {
 				Interval: time.Duration(10000000000),
 			},
 			ok:      true,
-			message: "",
+			message: []string{},
 		},
 		{
 			name: "endpoint without :",
@@ -81,7 +82,7 @@ func TestValidateSolarwindsApmSettingsExtensionConfiguration(t *testing.T) {
 				Endpoint: "apm.collector.na-01.cloud.solarwinds.com",
 			},
 			ok:      false,
-			message: "endpoint should be in \"<host>:<port>\" format",
+			message: []string{"endpoint should be in \"<host>:<port>\" format"},
 		},
 		{
 			name: "endpoint with some :",
@@ -89,7 +90,7 @@ func TestValidateSolarwindsApmSettingsExtensionConfiguration(t *testing.T) {
 				Endpoint: "apm.collector.na-01.cloud.solarwinds.com:a:b",
 			},
 			ok:      false,
-			message: "endpoint should be in \"<host>:<port>\" format",
+			message: []string{"endpoint should be in \"<host>:<port>\" format"},
 		},
 		{
 			name: "endpoint with invalid port",
@@ -97,7 +98,7 @@ func TestValidateSolarwindsApmSettingsExtensionConfiguration(t *testing.T) {
 				Endpoint: "apm.collector.na-01.cloud.solarwinds.com:port",
 			},
 			ok:      false,
-			message: "the <port> portion of endpoint has to be an integer",
+			message: []string{"the <port> portion of endpoint has to be an integer"},
 		},
 		{
 			name: "bad endpoint",
@@ -105,7 +106,7 @@ func TestValidateSolarwindsApmSettingsExtensionConfiguration(t *testing.T) {
 				Endpoint: "apm.collector..cloud.solarwinds.com:443",
 			},
 			ok:      false,
-			message: "endpoint \"<host>\" part should be in \"apm.collector.[a-z]{2,3}-[0-9]{2}.[a-z\\-]*.solarwinds.com\" regex format, see https://documentation.solarwinds.com/en/success_center/observability/content/system_requirements/endpoints.htm for detail",
+			message: []string{"endpoint \"<host>\" part should be in \"apm.collector.[a-z]{2,3}-[0-9]{2}.[a-z\\-]*.solarwinds.com\" regex format, see https://documentation.solarwinds.com/en/success_center/observability/content/system_requirements/endpoints.htm for detail"},
 		},
 		{
 			name: "empty endpoint with port",
@@ -113,7 +114,7 @@ func TestValidateSolarwindsApmSettingsExtensionConfiguration(t *testing.T) {
 				Endpoint: ":433",
 			},
 			ok:      false,
-			message: "endpoint should be in \"<host>:<port>\" format and \"<host>\" must not be empty",
+			message: []string{"endpoint should be in \"<host>:<port>\" format and \"<host>\" must not be empty"},
 		},
 		{
 			name: "empty endpoint without port",
@@ -121,7 +122,7 @@ func TestValidateSolarwindsApmSettingsExtensionConfiguration(t *testing.T) {
 				Endpoint: ":",
 			},
 			ok:      false,
-			message: "endpoint should be in \"<host>:<port>\" format and \"<host>\" must not be empty",
+			message: []string{"endpoint should be in \"<host>:<port>\" format and \"<host>\" must not be empty"},
 		},
 		{
 			name: "endpoint without port",
@@ -129,7 +130,7 @@ func TestValidateSolarwindsApmSettingsExtensionConfiguration(t *testing.T) {
 				Endpoint: "apm.collector.na-01.cloud.solarwinds.com:",
 			},
 			ok:      false,
-			message: "endpoint should be in \"<host>:<port>\" format and \"<port>\" must not be empty",
+			message: []string{"endpoint should be in \"<host>:<port>\" format and \"<port>\" must not be empty"},
 		},
 		{
 			name: "valid endpoint but empty key",
@@ -137,7 +138,7 @@ func TestValidateSolarwindsApmSettingsExtensionConfiguration(t *testing.T) {
 				Endpoint: "apm.collector.na-01.cloud.solarwinds.com:443",
 			},
 			ok:      false,
-			message: "key must not be empty",
+			message: []string{"key must not be empty"},
 		},
 		{
 			name: "key is :",
@@ -146,7 +147,7 @@ func TestValidateSolarwindsApmSettingsExtensionConfiguration(t *testing.T) {
 				Key:      ":",
 			},
 			ok:      false,
-			message: "key should be in \"<token>:<service_name>\" format and \"<token>\" must not be empty",
+			message: []string{"key should be in \"<token>:<service_name>\" format and \"<token>\" must not be empty"},
 		},
 		{
 			name: "key is ::",
@@ -155,7 +156,7 @@ func TestValidateSolarwindsApmSettingsExtensionConfiguration(t *testing.T) {
 				Key:      "::",
 			},
 			ok:      false,
-			message: "key should be in \"<token>:<service_name>\" format",
+			message: []string{"key should be in \"<token>:<service_name>\" format"},
 		},
 		{
 			name: "key is :name",
@@ -164,7 +165,7 @@ func TestValidateSolarwindsApmSettingsExtensionConfiguration(t *testing.T) {
 				Key:      ":name",
 			},
 			ok:      false,
-			message: "key should be in \"<token>:<service_name>\" format and \"<token>\" must not be empty",
+			message: []string{"key should be in \"<token>:<service_name>\" format and \"<token>\" must not be empty"},
 		},
 		{
 			name: "key is token:",
@@ -173,7 +174,7 @@ func TestValidateSolarwindsApmSettingsExtensionConfiguration(t *testing.T) {
 				Key:      "token:",
 			},
 			ok:      false,
-			message: "key should be in \"<token>:<service_name>\" format and \"<service_name>\" must not be empty",
+			message: []string{"Unable to resolve service name by our best effort. It can be defined via environment variables \"OTEL_SERVICE_NAME\" or \"AWS_LAMBDA_FUNCTION_NAME\"", "key should be in \"<token>:<service_name>\" format and \"<service_name>\" must not be empty"},
 		},
 		{
 			name: "minimum_interval",
@@ -183,7 +184,7 @@ func TestValidateSolarwindsApmSettingsExtensionConfiguration(t *testing.T) {
 				Interval: time.Duration(4000000000),
 			},
 			ok:      true,
-			message: "Interval 4s is less than the minimum supported interval " + MinimumInterval.String() + ". use minimum interval " + MinimumInterval.String() + " instead",
+			message: []string{"Interval 4s is less than the minimum supported interval " + MinimumInterval.String() + ". use minimum interval " + MinimumInterval.String() + " instead"},
 		},
 		{
 			name: "maximum_interval",
@@ -193,7 +194,7 @@ func TestValidateSolarwindsApmSettingsExtensionConfiguration(t *testing.T) {
 				Interval: time.Duration(61000000000),
 			},
 			ok:      true,
-			message: "Interval 1m1s is greater than the maximum supported interval " + MaximumInterval.String() + ". use maximum interval " + MaximumInterval.String() + " instead",
+			message: []string{"Interval 1m1s is greater than the maximum supported interval " + MaximumInterval.String() + ". use maximum interval " + MaximumInterval.String() + " instead"},
 		},
 	}
 	for _, tc := range tests {
@@ -201,10 +202,14 @@ func TestValidateSolarwindsApmSettingsExtensionConfiguration(t *testing.T) {
 			observedZapCore, observedLogs := observer.New(zap.DebugLevel)
 			observedLogger := zap.New(observedZapCore)
 			require.Equal(t, tc.ok, validateSolarwindsApmSettingsExtensionConfiguration(tc.cfg, observedLogger))
-			if len(tc.message) != 0 {
-				require.Equal(t, 1, observedLogs.Len())
-				require.Equal(t, tc.message, observedLogs.All()[0].Message)
+			require.Equal(t, len(tc.message), observedLogs.Len())
+			for i, observedLog := range observedLogs.All() {
+				require.Equal(t, tc.message[i], observedLog.Message)
 			}
 		})
 	}
+}
+
+func TestResolveServiceNameBestEffort(t *testing.T) {
+
 }
