@@ -46,10 +46,10 @@ func newSolarwindsApmSettingsExtension(extensionCfg *Config, logger *zap.Logger)
 
 func resolveServiceNameBestEffort(logger *zap.Logger) string {
 	if otelServiceName, otelServiceNameDefined := os.LookupEnv("OTEL_SERVICE_NAME"); otelServiceNameDefined && len(otelServiceName) > 0 {
-		logger.Debug("Managed to get service name (" + otelServiceName + ") from environment variable \"OTEL_SERVICE_NAME\"")
+		logger.Info("Managed to get service name (" + otelServiceName + ") from environment variable \"OTEL_SERVICE_NAME\"")
 		return otelServiceName
 	} else if awsLambdaFunctionName, awsLambdaFunctionNameDefined := os.LookupEnv("AWS_LAMBDA_FUNCTION_NAME"); awsLambdaFunctionNameDefined && len(awsLambdaFunctionName) > 0 {
-		logger.Debug("Managed to get service name (" + awsLambdaFunctionName + ") from environment variable \"AWS_LAMBDA_FUNCTION_NAME\"")
+		logger.Info("Managed to get service name (" + awsLambdaFunctionName + ") from environment variable \"AWS_LAMBDA_FUNCTION_NAME\"")
 		return awsLambdaFunctionName
 	} else {
 		logger.Warn("Unable to resolve service name by our best effort. It can be defined via environment variables \"OTEL_SERVICE_NAME\" or \"AWS_LAMBDA_FUNCTION_NAME\"")
@@ -104,10 +104,11 @@ func validateSolarwindsApmSettingsExtensionConfiguration(extensionCfg *Config, l
 		 * Service name is empty
 		 * We will try our best effort to resolve the service name
 		 */
+		logger.Info("<service_name> from config is empty. Trying to resolve service name from env variables by best effort")
 		serviceName := resolveServiceNameBestEffort(logger)
 		if len(serviceName) > 0 {
 			extensionCfg.Key = keyArr[0] + ":" + serviceName
-			logger.Debug("Created a new Key using " + serviceName + "as the \"<service name>\"")
+			logger.Info("Created a new Key using " + serviceName + "as the \"<service name>\"")
 		} else {
 			logger.Error("key should be in \"<token>:<service_name>\" format and \"<service_name>\" must not be empty")
 			return false

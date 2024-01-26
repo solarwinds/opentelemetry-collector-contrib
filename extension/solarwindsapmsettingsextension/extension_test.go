@@ -175,7 +175,7 @@ func TestValidateSolarwindsApmSettingsExtensionConfiguration(t *testing.T) {
 				Key:      "token:",
 			},
 			ok:      false,
-			message: []string{"Unable to resolve service name by our best effort. It can be defined via environment variables \"OTEL_SERVICE_NAME\" or \"AWS_LAMBDA_FUNCTION_NAME\"", "key should be in \"<token>:<service_name>\" format and \"<service_name>\" must not be empty"},
+			message: []string{"<service_name> from config is empty. Trying to resolve service name from env variables by best effort", "Unable to resolve service name by our best effort. It can be defined via environment variables \"OTEL_SERVICE_NAME\" or \"AWS_LAMBDA_FUNCTION_NAME\"", "key should be in \"<token>:<service_name>\" format and \"<service_name>\" must not be empty"},
 		},
 		{
 			name: "minimum_interval",
