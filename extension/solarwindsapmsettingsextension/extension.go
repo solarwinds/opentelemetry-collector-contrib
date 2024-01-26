@@ -108,7 +108,7 @@ func validateSolarwindsApmSettingsExtensionConfiguration(extensionCfg *Config, l
 		serviceName := resolveServiceNameBestEffort(logger)
 		if len(serviceName) > 0 {
 			extensionCfg.Key = keyArr[0] + ":" + serviceName
-			logger.Info("Created a new Key using " + serviceName + "as the \"<service name>\"")
+			logger.Info("Created a new Key using " + serviceName + " as the \"<service name>\"")
 		} else {
 			logger.Error("key should be in \"<token>:<service_name>\" format and \"<service_name>\" must not be empty")
 			return false
