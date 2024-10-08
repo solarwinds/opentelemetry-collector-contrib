@@ -92,8 +92,7 @@ func TestFilterToken(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			traces := buildTestTraces(tt.useToken)
-			batches, err := jaeger.ProtoFromTraces(traces)
-			require.NoError(t, err)
+			batches := jaeger.ProtoFromTraces(traces)
 			assert.Equal(t, tt.useToken, hasToken(batches))
 			filterToken(batches)
 			assert.False(t, hasToken(batches))
@@ -365,11 +364,11 @@ func TestCompression(t *testing.T) {
 							assert.EqualValues(t, compression, tt.receivedCompression)
 
 							payload, err := decompress(r.Body, compression)
-							require.NoError(t, err)
+							assert.NoError(t, err)
 
 							var sapm splunksapm.PostSpansRequest
 							err = sapm.Unmarshal(payload)
-							require.NoError(t, err)
+							assert.NoError(t, err)
 
 							w.WriteHeader(200)
 							tracesReceived = true
